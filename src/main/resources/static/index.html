@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookMyShow - Online Movie Ticket Booking</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <span class="logo-icon">🎬</span>
+                <span class="logo-text">BookMyShow</span>
+            </div>
+            <nav class="nav-links">
+                <a href="#cities" class="nav-link active" data-section="cities">Cities</a>
+                <a href="#bookings" class="nav-link" data-section="bookings">My Bookings</a>
+            </nav>
+            <div class="nav-user">
+                <span id="navUsername" class="nav-username"></span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Section: Login -->
+        <section id="login-section" class="section active">
+            <div class="login-card">
+                <div class="login-icon">🎬</div>
+                <h1 class="login-title">Welcome to BookMyShow</h1>
+                <p class="login-subtitle">Login to book your seats</p>
+                <div class="form-group">
+                    <label for="loginUsername">Username</label>
+                    <input type="text" id="loginUsername" placeholder="user1 or user2" class="login-input">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter password" class="login-input">
+                </div>
+                <p id="loginError" class="login-error"></p>
+                <button class="login-btn neon-btn-cyan" onclick="login()">Login</button>
+            </div>
+        </section>
+
+        <!-- Section: Cities -->
+        <section id="cities-section" class="section">
+            <h1 class="cinematic-heading">Select Your City</h1>
+            <div id="citiesGrid" class="cities-grid">
+                <!-- Cities will be loaded here -->
+                <div class="loading-spinner">Loading cities...</div>
+            </div>
+
+            <!-- Now Showing Section with Movie Carousel -->
+            <div class="now-showing-section">
+                <h2 class="now-showing-heading">Now Showing</h2>
+                <div class="carousel-container">
+                    <div class="carousel-track" id="carouselTrack">
+                        <!-- Movie posters will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Movies -->
+        <section id="movies-section" class="section">
+            <button class="back-btn" onclick="showSection('cities')">← Back to Cities</button>
+            <h1 class="section-title">Now Showing in <span id="selectedCity"></span></h1>
+            <div id="moviesGrid" class="movies-grid">
+                <!-- Movies will be loaded here -->
+                <div class="loading-spinner">Loading movies...</div>
+            </div>
+        </section>
+
+        <!-- Section: Theatres -->
+        <section id="theatres-section" class="section">
+            <button class="back-btn" onclick="showSection('movies')">← Back to Movies</button>
+            <h1 class="section-title">Select Theatre & Show</h1>
+            <div id="theatresContainer" class="theatres-container">
+                <!-- Theatres will be loaded here -->
+            </div>
+        </section>
+
+        <!-- Section: Seat Selection -->
+        <section id="seats-section" class="section">
+            <button class="back-btn" onclick="showSection('theatres')">← Back to Theatres</button>
+            <h1 class="section-title">Select Your Seats</h1>
+            <div class="seats-info">
+                <div class="movie-details">
+                    <h2 id="selectedMovieTitle"></h2>
+                    <p id="selectedShowInfo"></p>
+                </div>
+                <div class="seat-legend">
+                    <div class="legend-item"><div class="seat-box available"></div><span>Available</span></div>
+                    <div class="legend-item"><div class="seat-box selected"></div><span>Selected</span></div>
+                    <div class="legend-item"><div class="seat-box locked"></div><span>Locked</span></div>
+                    <div class="legend-item"><div class="seat-box booked"></div><span>Booked</span></div>
+                </div>
+            </div>
+            <div class="screen">Screen</div>
+            <div id="seatsContainer" class="seats-container">
+                <!-- Seats will be loaded here -->
+            </div>
+            <div class="seats-summary">
+                <div id="lockTimer" class="lock-timer"></div>
+                <div class="summary-item">
+                    <span>Selected Seats:</span>
+                    <span id="selectedSeatsDisplay">None</span>
+                </div>
+                <div class="summary-item">
+                    <span>Total Price:</span>
+                    <span id="totalPriceDisplay">₹0</span>
+                </div>
+                <button id="proceedBtn" class="proceed-btn neon-btn-cyan" onclick="proceedToBooking()">Proceed to Booking</button>
+            </div>
+        </section>
+
+        <!-- Section: Payment -->
+        <section id="payment-section" class="section">
+            <button class="back-btn" onclick="showSection('seats')">← Back to Seats</button>
+            <h1 class="section-title">Payment</h1>
+            <div class="payment-card">
+                <div class="payment-details">
+                    <h3>Payment Summary</h3>
+                    <p><strong>Movie:</strong> <span id="paymentMovie"></span></p>
+                    <p><strong>Theatre:</strong> <span id="paymentTheatre"></span></p>
+                    <p><strong>Screen:</strong> <span id="paymentScreen"></span></p>
+                    <p><strong>Show Time:</strong> <span id="paymentShowTime"></span></p>
+                    <p><strong>Seats:</strong> <span id="paymentSeats"></span></p>
+                    <p><strong>Total Amount:</strong> <span id="paymentAmount" class="amount"></span></p>
+                </div>
+                <div class="payment-form">
+                    <h3>Enter Payment Details</h3>
+                    <div class="form-group">
+                        <label for="cardNumber">Card Number</label>
+                        <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="expiryDate">Expiry Date</label>
+                            <input type="text" id="expiryDate" placeholder="MM/YY" maxlength="5">
+                        </div>
+                        <div class="form-group">
+                            <label for="cvv">CVV</label>
+                            <input type="text" id="cvv" placeholder="123" maxlength="3">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cardName">Cardholder Name</label>
+                        <input type="text" id="cardName" placeholder="John Doe">
+                    </div>
+                    <button id="payBtn" class="pay-btn neon-btn-green" onclick="processPayment()">Pay Now</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Booking Success -->
+        <section id="success-section" class="section">
+            <div class="success-card">
+                <div class="success-icon">🎉</div>
+                <h1>Hurray! Your Booking is Confirmed!</h1>
+                <div class="booking-details-card">
+                    <div class="detail-row">
+                        <span class="detail-label">Booking ID:</span>
+                        <span id="bookingIdDisplay" class="detail-value reference-value"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Movie:</span>
+                        <span id="bookingMovie" class="detail-value"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Theatre:</span>
+                        <span id="bookingTheatre" class="detail-value"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Screen:</span>
+                        <span id="bookingScreen" class="detail-value"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Show Time:</span>
+                        <span id="bookingShowTime" class="detail-value"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Seats:</span>
+                        <span id="bookingSeats" class="detail-value"></span>
+                    </div>
+                    <div class="detail-row highlight">
+                        <span class="detail-label">Total Amount:</span>
+                        <span id="bookingAmount" class="detail-value amount"></span>
+                    </div>
+                </div>
+                <button class="home-btn neon-btn-pink" onclick="goHome()">Back to Home</button>
+            </div>
+        </section>
+
+        <!-- Section: My Bookings -->
+        <section id="bookings-section" class="section">
+            <button class="back-btn" onclick="showSection('cities')">← Back to Cities</button>
+            <h1 class="section-title">My Bookings</h1>
+            <div id="bookingsGrid" class="bookings-grid">
+                <div class="loading-spinner">Loading your bookings...</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for Error Messages -->
+    <div id="errorModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Error</h2>
+            <p id="errorMessage"></p>
+            <button onclick="closeModal()" class="modal-btn">OK</button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Processing...</p>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

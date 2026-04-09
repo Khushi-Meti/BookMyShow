@@ -1,0 +1,97 @@
+@startuml High-Level Flow Diagram
+
+title High-Level Booking Flow
+
+actor User
+participant "Frontend (HTML/JS)" as Frontend
+participant "TheatreController" as TheatreCtrl
+participant "MovieController" as MovieCtrl
+participant "BookingController" as BookingCtrl
+participant "TheatreService" as TheatreSvc
+participant "MovieService" as MovieSvc
+participant "BookingService" as BookingSvc
+participant "TheatreRepository" as TheatreRepo
+participant "MovieRepository" as MovieRepo
+participant "BookingRepository" as BookingRepo
+database "MySQL DB" as DB
+
+== User Selects City ==
+User -> Frontend: Select city
+Frontend -> TheatreCtrl: GET /api/theatres/cities
+TheatreCtrl -> TheatreSvc: getCities()
+TheatreSvc -> TheatreRepo: findDistinctLocations()
+TheatreRepo -> DB: SELECT DISTINCT location FROM theatres
+DB --> TheatreRepo: Cities list
+TheatreRepo --> TheatreSvc: Cities
+TheatreSvc --> TheatreCtrl: Cities
+TheatreCtrl --> Frontend: Cities displayed
+
+== User Selects Movie in City ==
+User -> Frontend: Select movie in city
+Frontend -> MovieCtrl: GET /api/movies/city/{city}
+MovieCtrl -> MovieSvc: getMoviesByCity(city)
+MovieSvc -> MovieRepo: findMoviesByCity(city)
+MovieRepo -> DB: Query movies via shows/theatres
+DB --> MovieRepo: Movies in city
+MovieRepo --> MovieSvc: Movies
+MovieSvc --> MovieCtrl: Movies
+MovieCtrl --> Frontend: Movies displayed
+
+== User Selects Theatre ==
+User -> Frontend: Select theatre for movie in city
+Frontend -> TheatreCtrl: GET /api/theatres/city/{city}/movie/{movieId}
+TheatreCtrl -> TheatreSvc: getTheatresByCityAndMovie(city, movieId)
+TheatreSvc -> TheatreRepo: findTheatresByCityAndMovie(city, movieId)
+TheatreRepo -> DB: Query theatres via shows
+DB --> TheatreRepo: Theatres
+TheatreRepo --> TheatreSvc: Theatres
+TheatreSvc --> TheatreCtrl: Theatres
+TheatreCtrl --> Frontend: Theatres displayed
+
+== User Selects Show and Seats ==
+User -> Frontend: Select show and seats
+Frontend -> Frontend: Prepare BookingRequestDTO
+
+== API Call ==
+Frontend -> BookingCtrl: POST /api/bookings/book (BookingRequestDTO)
+BookingCtrl -> BookingSvc: bookSeats(BookingRequestDTO)
+
+== Business Logic ==
+BookingSvc -> BookingSvc: Create PENDING booking
+BookingSvc -> BookingRepo: Validate show and seats
+BookingRepo -> DB: Query show/seat data
+DB --> BookingRepo: Return data
+BookingRepo --> BookingSvc: Validation result
+
+BookingSvc -> BookingSvc: Check if seats available
+BookingSvc -> BookingSvc: Simulate payment processing
+
+alt Payment Successful
+    BookingSvc -> BookingRepo: Mark seats as booked
+    BookingRepo -> DB: Update ShowSeats
+    DB --> BookingRepo: Updated
+    BookingRepo --> BookingSvc: Seats booked
+
+    BookingSvc -> BookingRepo: Update booking to CONFIRMED
+    BookingRepo -> DB: Update Booking
+    DB --> BookingRepo: Updated
+    BookingRepo --> BookingSvc: Booking confirmed
+
+    BookingSvc --> BookingCtrl: BookingConfirmationDTO
+    BookingCtrl --> Frontend: HTTP 201 (Confirmation)
+    Frontend --> User: Show booking success
+else Payment Failed
+    BookingSvc -> BookingRepo: Update booking to FAILED
+    BookingRepo -> DB: Update Booking
+    DB --> BookingRepo: Updated
+    BookingRepo --> BookingSvc: Booking failed
+
+    BookingSvc --> BookingCtrl: Throw PaymentProcessingException
+    BookingCtrl --> Frontend: HTTP 409 (Payment failed)
+    Frontend --> User: Show error
+end
+
+== Locks Released ==
+note right: Locks automatically released on transaction end
+
+@enduml
