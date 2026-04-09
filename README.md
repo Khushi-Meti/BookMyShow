@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # BookMyShow Backend System
 
 A Spring Boot-based backend system for a movie booking application similar to BookMyShow.
@@ -181,3 +182,7 @@ POST /api/movies
 ## License
 
 This project is licensed under the MIT License.
+=======
+# BookMyShow
+BookMyShow-inspired app implementing concurrency control in seat booking using pessimistic locking, ensuring no double booking by locking seats for 5 minutes during high-traffic scenarios.
+>>>>>>> 1986b5a8c0e9ea2f6d807fe32d4981af907cb511
