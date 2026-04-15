@@ -1,97 +1,134 @@
 @startuml High-Level Flow Diagram
 
-title High-Level Booking Flow
+title BookMyShow High-Level Booking Flow
 
 actor User
 participant "Frontend (HTML/JS)" as Frontend
 participant "TheatreController" as TheatreCtrl
 participant "MovieController" as MovieCtrl
+participant "ShowController" as ShowCtrl
+participant "SeatController" as SeatCtrl
 participant "BookingController" as BookingCtrl
 participant "TheatreService" as TheatreSvc
 participant "MovieService" as MovieSvc
+participant "ShowService" as ShowSvc
+participant "SeatLockService" as SeatLockSvc
 participant "BookingService" as BookingSvc
 participant "TheatreRepository" as TheatreRepo
 participant "MovieRepository" as MovieRepo
+participant "ShowRepository" as ShowRepo
+participant "SeatRepository" as SeatRepo
+participant "ShowSeatRepository" as ShowSeatRepo
 participant "BookingRepository" as BookingRepo
 database "MySQL DB" as DB
 
-== User Selects City ==
+== Discover movies by city ==
 User -> Frontend: Select city
 Frontend -> TheatreCtrl: GET /api/theatres/cities
 TheatreCtrl -> TheatreSvc: getCities()
 TheatreSvc -> TheatreRepo: findDistinctLocations()
-TheatreRepo -> DB: SELECT DISTINCT location FROM theatres
-DB --> TheatreRepo: Cities list
+TheatreRepo -> DB: SELECT DISTINCT city FROM theatres
+DB --> TheatreRepo: City list
 TheatreRepo --> TheatreSvc: Cities
 TheatreSvc --> TheatreCtrl: Cities
-TheatreCtrl --> Frontend: Cities displayed
+TheatreCtrl --> Frontend: Display cities
 
-== User Selects Movie in City ==
-User -> Frontend: Select movie in city
+User -> Frontend: Choose city
 Frontend -> MovieCtrl: GET /api/movies/city/{city}
 MovieCtrl -> MovieSvc: getMoviesByCity(city)
 MovieSvc -> MovieRepo: findMoviesByCity(city)
-MovieRepo -> DB: Query movies via shows/theatres
-DB --> MovieRepo: Movies in city
+MovieRepo -> DB: Query movies by theatre/show location
+DB --> MovieRepo: Movie list
 MovieRepo --> MovieSvc: Movies
 MovieSvc --> MovieCtrl: Movies
-MovieCtrl --> Frontend: Movies displayed
+MovieCtrl --> Frontend: Display movies
 
-== User Selects Theatre ==
-User -> Frontend: Select theatre for movie in city
+== Select theatre and show ==
+User -> Frontend: Choose theatre
 Frontend -> TheatreCtrl: GET /api/theatres/city/{city}/movie/{movieId}
 TheatreCtrl -> TheatreSvc: getTheatresByCityAndMovie(city, movieId)
 TheatreSvc -> TheatreRepo: findTheatresByCityAndMovie(city, movieId)
-TheatreRepo -> DB: Query theatres via shows
-DB --> TheatreRepo: Theatres
+TheatreRepo -> DB: Query theatres by movie and city
+DB --> TheatreRepo: Theatre list
 TheatreRepo --> TheatreSvc: Theatres
 TheatreSvc --> TheatreCtrl: Theatres
-TheatreCtrl --> Frontend: Theatres displayed
+TheatreCtrl --> Frontend: Display theatres
 
-== User Selects Show and Seats ==
-User -> Frontend: Select show and seats
-Frontend -> Frontend: Prepare BookingRequestDTO
+User -> Frontend: Choose show time
+Frontend -> ShowCtrl: GET /api/shows/movie/{movieId}
+ShowCtrl -> ShowSvc: getShowsByMovieId(movieId)
+ShowSvc -> ShowRepo: findByMovieId(movieId)
+ShowRepo -> DB: Query shows for movie
+DB --> ShowRepo: Show list
+ShowRepo --> ShowSvc: Shows
+ShowSvc --> ShowCtrl: Shows
+ShowCtrl --> Frontend: Display show times
 
-== API Call ==
-Frontend -> BookingCtrl: POST /api/bookings/book (BookingRequestDTO)
+== Load seat map ==
+User -> Frontend: Open seat map
+Frontend -> SeatCtrl: GET /api/seats/screen/{screenId}/show/{showId}?userId={userId}
+SeatCtrl -> ShowSeatRepo: findByShowId(showId)
+SeatCtrl -> SeatRepo: findByScreenId(screenId)
+ShowSeatRepo -> DB: Query show seats and lock status
+SeatRepo -> DB: Query screen seats
+DB --> ShowSeatRepo: Locked/Booked seats
+DB --> SeatRepo: Seat definitions
+ShowSeatRepo --> SeatCtrl: Show seat status
+SeatRepo --> SeatCtrl: Seat list
+SeatCtrl --> Frontend: Render seat availability
+
+== Seat selection and lock ==
+User -> Frontend: Select seat
+Frontend -> SeatCtrl: POST /api/seats/lock
+SeatCtrl -> SeatLockSvc: lockSeats(showId, [seatId], userId)
+SeatLockSvc -> ShowSeatRepo: findByShowIdAndSeatIdsWithLock(showId, [seatId])
+ShowSeatRepo -> DB: Lock row for update
+DB --> ShowSeatRepo: ShowSeat row
+SeatLockSvc -> DB: Update seat status to LOCKED
+DB --> SeatLockSvc: Locked
+SeatLockSvc --> SeatCtrl: Seat locked
+SeatCtrl --> Frontend: Mark seat selected
+
+User -> Frontend: Deselect seat
+Frontend -> SeatCtrl: DELETE /api/seats/lock
+SeatCtrl -> SeatLockSvc: unlockSeats(showId, [seatId], userId)
+SeatLockSvc -> ShowSeatRepo: findByShowIdAndSeatIdsWithLock(showId, [seatId])
+SeatLockSvc -> DB: Update seat status to AVAILABLE
+DB --> SeatLockSvc: Unlocked
+SeatLockSvc --> SeatCtrl: Seat unlocked
+SeatCtrl --> Frontend: Update seat map
+
+== Booking request ==
+User -> Frontend: Confirm booking
+Frontend -> BookingCtrl: POST /api/bookings/book
 BookingCtrl -> BookingSvc: bookSeats(BookingRequestDTO)
+BookingSvc -> BookingRepo: createPendingBooking(userId, showId)
+BookingSvc -> ShowRepo: validShowExists(showId)
+BookingSvc -> SeatRepo: validateSeatsForShow(showId, seatIds)
+BookingSvc -> ShowSeatRepo: findByShowIdAndSeatIdsWithLock(showId, seatIds)
+BookingSvc -> BookingSvc: checkAndThrowIfAnyBookedSeat()
+BookingSvc -> BookingSvc: simulatePaymentProcessing()
 
-== Business Logic ==
-BookingSvc -> BookingSvc: Create PENDING booking
-BookingSvc -> BookingRepo: Validate show and seats
-BookingRepo -> DB: Query show/seat data
-DB --> BookingRepo: Return data
-BookingRepo --> BookingSvc: Validation result
-
-BookingSvc -> BookingSvc: Check if seats available
-BookingSvc -> BookingSvc: Simulate payment processing
-
-alt Payment Successful
-    BookingSvc -> BookingRepo: Mark seats as booked
-    BookingRepo -> DB: Update ShowSeats
-    DB --> BookingRepo: Updated
-    BookingRepo --> BookingSvc: Seats booked
-
-    BookingSvc -> BookingRepo: Update booking to CONFIRMED
-    BookingRepo -> DB: Update Booking
-    DB --> BookingRepo: Updated
-    BookingRepo --> BookingSvc: Booking confirmed
-
+alt Payment success
+    BookingSvc -> BookingSvc: markSeatsAsBooked()
+    BookingSvc -> BookingRepo: updateBookingStatus(CONFIRMED)
     BookingSvc --> BookingCtrl: BookingConfirmationDTO
-    BookingCtrl --> Frontend: HTTP 201 (Confirmation)
-    Frontend --> User: Show booking success
-else Payment Failed
-    BookingSvc -> BookingRepo: Update booking to FAILED
-    BookingRepo -> DB: Update Booking
-    DB --> BookingRepo: Updated
-    BookingRepo --> BookingSvc: Booking failed
-
-    BookingSvc --> BookingCtrl: Throw PaymentProcessingException
-    BookingCtrl --> Frontend: HTTP 409 (Payment failed)
-    Frontend --> User: Show error
+    BookingCtrl --> Frontend: HTTP 201 Created
+    Frontend --> User: Show success screen
+else Failure
+    BookingSvc -> SeatLockSvc: unlockAllSeatsForUser(showId, userId)
+    BookingSvc -> BookingRepo: updateBookingStatus(FAILED)
+    BookingSvc --> BookingCtrl: Throw error
+    BookingCtrl --> Frontend: HTTP 409 / HTTP 500
+    Frontend --> User: Show booking error
 end
 
-== Locks Released ==
-note right: Locks automatically released on transaction end
+== Lock expiration cleanup ==
+note right of SeatLockSvc: Scheduled cleanup releases expired locks every 30s
+SeatLockSvc -> ShowSeatRepo: findExpiredLocks(expiryTime)
+ShowSeatRepo -> DB: Query expired locked seats
+DB --> ShowSeatRepo: Expired locks
+SeatLockSvc -> DB: Set expired seats AVAILABLE
+DB --> SeatLockSvc: Released
 
 @enduml

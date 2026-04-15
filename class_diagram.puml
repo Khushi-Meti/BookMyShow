@@ -8,6 +8,7 @@ package "Controllers" {
         + getBookingById(Long): ResponseEntity<BookingDTO>
         + getBookingsByUserId(Long): ResponseEntity<List<BookingDTO>>
         + getBookingsByShowId(Long): ResponseEntity<List<BookingDTO>>
+        + cancelBooking(Long): ResponseEntity<?>
     }
 
     class MovieController {
@@ -15,6 +16,7 @@ package "Controllers" {
         + getMovieById(Long): ResponseEntity<MovieDTO>
         + getAllMovies(): ResponseEntity<List<MovieDTO>>
         + getMoviesByLanguage(String): ResponseEntity<List<MovieDTO>>
+        + getMoviesByCity(String): ResponseEntity<List<MovieDTO>>
         + updateMovie(Long, MovieDTO): ResponseEntity<MovieDTO>
         + deleteMovie(Long): ResponseEntity<Void>
     }
@@ -23,6 +25,9 @@ package "Controllers" {
         + createTheatre(TheatreDTO): ResponseEntity<TheatreDTO>
         + getTheatreById(Long): ResponseEntity<TheatreDTO>
         + getAllTheatres(): ResponseEntity<List<TheatreDTO>>
+        + getCities(): ResponseEntity<List<String>>
+        + getTheatresByLocation(String): ResponseEntity<List<TheatreDTO>>
+        + getTheatresByCityAndMovie(String, Long): ResponseEntity<List<TheatreDTO>>
         + updateTheatre(Long, TheatreDTO): ResponseEntity<TheatreDTO>
         + deleteTheatre(Long): ResponseEntity<Void>
     }
@@ -30,8 +35,9 @@ package "Controllers" {
     class ShowController {
         + createShow(ShowDTO): ResponseEntity<ShowDTO>
         + getShowById(Long): ResponseEntity<ShowDTO>
+        + getAllShows(): ResponseEntity<List<ShowDTO>>
         + getShowsByMovieId(Long): ResponseEntity<List<ShowDTO>>
-        + getShowsByTheatreId(Long): ResponseEntity<List<ShowDTO>>
+        + getShowsByScreenId(Long): ResponseEntity<List<ShowDTO>>
         + updateShow(Long, ShowDTO): ResponseEntity<ShowDTO>
         + deleteShow(Long): ResponseEntity<Void>
     }
@@ -40,14 +46,15 @@ package "Controllers" {
         + createUser(UserDTO): ResponseEntity<UserDTO>
         + getUserById(Long): ResponseEntity<UserDTO>
         + getAllUsers(): ResponseEntity<List<UserDTO>>
+        + getUserByEmail(String): ResponseEntity<UserDTO>
         + updateUser(Long, UserDTO): ResponseEntity<UserDTO>
         + deleteUser(Long): ResponseEntity<Void>
     }
 
     class SeatController {
         + getSeatsByScreenAndShow(Long, Long, Long?): ResponseEntity<List<SeatDTO>>
-        + lockSeat(SeatLockRequest): ResponseEntity<?>
-        + unlockSeat(SeatLockRequest): ResponseEntity<?>
+        + lockSeat(SeatController.SeatLockRequest): ResponseEntity<?>
+        + unlockSeat(SeatController.SeatLockRequest): ResponseEntity<?>
     }
 }
 
@@ -60,7 +67,7 @@ package "Services" {
         - checkAndThrowIfAnyBookedSeat(List<ShowSeat>): void
         - simulatePaymentProcessing(Long, int): PaymentResult
         - markSeatsAsBooked(Booking, Show, List<Seat>, List<ShowSeat>, Long): List<String>
-        - updateBookingStatus(Long, BookingStatus): void
+        - updateBookingStatus(Long, Booking.BookingStatus): void
         - buildBookingConfirmation(Booking, Show, List<String>): BookingConfirmationDTO
     }
 
@@ -69,6 +76,7 @@ package "Services" {
         + getMovieById(Long): MovieDTO
         + getAllMovies(): List<MovieDTO>
         + getMoviesByLanguage(String): List<MovieDTO>
+        + getMoviesByCity(String): List<MovieDTO>
         + updateMovie(Long, MovieDTO): MovieDTO
         + deleteMovie(Long): void
         - convertEntityToDTO(Movie): MovieDTO
@@ -79,6 +87,9 @@ package "Services" {
         + createTheatre(TheatreDTO): TheatreDTO
         + getTheatreById(Long): TheatreDTO
         + getAllTheatres(): List<TheatreDTO>
+        + getCities(): List<String>
+        + getTheatresByLocation(String): List<TheatreDTO>
+        + getTheatresByCityAndMovie(String, Long): List<TheatreDTO>
         + updateTheatre(Long, TheatreDTO): TheatreDTO
         + deleteTheatre(Long): void
         - convertEntityToDTO(Theatre): TheatreDTO
@@ -88,8 +99,9 @@ package "Services" {
     class ShowService {
         + createShow(ShowDTO): ShowDTO
         + getShowById(Long): ShowDTO
+        + getAllShows(): List<ShowDTO>
         + getShowsByMovieId(Long): List<ShowDTO>
-        + getShowsByTheatreId(Long): List<ShowDTO>
+        + getShowsByScreenId(Long): List<ShowDTO>
         + updateShow(Long, ShowDTO): ShowDTO
         + deleteShow(Long): void
         - convertEntityToDTO(Show): ShowDTO
@@ -99,6 +111,7 @@ package "Services" {
     class UserService {
         + createUser(UserDTO): UserDTO
         + getUserById(Long): UserDTO
+        + getUserByEmail(String): UserDTO
         + getAllUsers(): List<UserDTO>
         + updateUser(Long, UserDTO): UserDTO
         + deleteUser(Long): void
@@ -119,54 +132,63 @@ package "Services" {
 }
 
 package "Repositories" {
-    interface JpaRepository<T, ID> {
-        + save(T): T
-        + findById(ID): Optional<T>
-        + findAll(): List<T>
-        + deleteById(ID): void
-        + delete(T): void
-    }
-
     class BookingRepository {
         + findByUserId(Long): List<Booking>
         + findByShowId(Long): List<Booking>
+        + findByStatus(Booking.BookingStatus): List<Booking>
+        + findByUserIdAndStatus(Long, Booking.BookingStatus): List<Booking>
+        + findByBookingTimeBetween(LocalDateTime, LocalDateTime): List<Booking>
+        + findByShowIdAndStatus(Long, Booking.BookingStatus): List<Booking>
     }
 
     class MovieRepository {
         + findByName(String): Optional<Movie>
         + findByLanguage(String): List<Movie>
+        + findMoviesByCity(String): List<Movie>
     }
 
     class TheatreRepository {
+        + findByName(String): Optional<Theatre>
         + findByLocation(String): List<Theatre>
-    }
-
-    class ScreenRepository {
-        + findByTheatreId(Long): List<Screen>
-    }
-
-    class SeatRepository {
-        + findByScreenId(Long): List<Seat>
+        + findDistinctLocations(): List<String>
+        + findTheatresByCityAndMovie(String, Long): List<Theatre>
     }
 
     class ShowRepository {
         + findByMovieId(Long): List<Show>
-        + findByTheatreId(Long): List<Show>
         + findByScreenId(Long): List<Show>
+        + findByIdWithDetails(Long): Optional<Show>
+        + findByShowTimeBetween(LocalDateTime, LocalDateTime): List<Show>
+        + findByMovieIdAndScreenId(Long, Long): List<Show>
+    }
+
+    class SeatRepository {
+        + findByScreenId(Long): List<Seat>
+        + findByScreenIdAndSeatNumber(Long, String): Optional<Seat>
+        + findByScreenIdAndSeatType(Long, Seat.SeatType): List<Seat>
     }
 
     class ShowSeatRepository {
+        + findByShowIdAndSeatId(Long, Long): Optional<ShowSeat>
         + findByShowId(Long): List<ShowSeat>
         + findBySeatId(Long): List<ShowSeat>
+        + findByShowIdAndIsBooked(Long, Boolean): List<ShowSeat>
         + findByBookingId(Long): List<ShowSeat>
+        + countByShowIdAndIsBooked(Long, Boolean): Integer
         + findByShowIdAndSeatIdsWithLock(Long, List<Long>): List<ShowSeat>
         + findByShowIdAndSeatIdWithLock(Long, Long): Optional<ShowSeat>
         + findExpiredLocks(LocalDateTime): List<ShowSeat>
         + findLockedByUserAndShow(Long, Long): List<ShowSeat>
     }
 
+    class ScreenRepository {
+        + findByTheatreId(Long): List<Screen>
+        + findByName(String): List<Screen>
+    }
+
     class UserRepository {
         + findByEmail(String): Optional<User>
+        + findByPhoneNumber(String): Optional<User>
     }
 }
 
@@ -178,7 +200,6 @@ package "Models" {
         - language: String
         - createdAt: LocalDateTime
         - updatedAt: LocalDateTime
-        - shows: List<Show>
     }
 
     class Theatre {
@@ -187,7 +208,6 @@ package "Models" {
         - location: String
         - createdAt: LocalDateTime
         - updatedAt: LocalDateTime
-        - screens: List<Screen>
     }
 
     class Screen {
@@ -196,61 +216,50 @@ package "Models" {
         - totalSeats: Integer
         - createdAt: LocalDateTime
         - updatedAt: LocalDateTime
-        - theatre: Theatre
-        - seats: List<Seat>
-        - shows: List<Show>
     }
 
     class Seat {
         - id: Long
         - seatNumber: String
-        - seatType: SeatType
+        - seatType: Seat.SeatType
         - createdAt: LocalDateTime
         - updatedAt: LocalDateTime
-        - screen: Screen
-        - showSeats: List<ShowSeat>
     }
 
     class Show {
         - id: Long
-        - startTime: LocalDateTime
-        - endTime: LocalDateTime
+        - showTime: LocalDateTime
         - createdAt: LocalDateTime
         - updatedAt: LocalDateTime
-        - movie: Movie
-        - screen: Screen
-        - showSeats: List<ShowSeat>
-        - bookings: List<Booking>
     }
 
     class ShowSeat {
         - id: Long
-        - status: SeatStatus
+        - status: ShowSeat.SeatStatus
         - isBooked: Boolean
         - lockedAt: LocalDateTime
         - lockedByUserId: Long
         - createdAt: LocalDateTime
         - updatedAt: LocalDateTime
-        - show: Show
-        - seat: Seat
-        - booking: Booking
     }
 
     class Booking {
         - id: Long
         - userId: Long
         - bookingTime: LocalDateTime
-        - status: BookingStatus
+        - status: Booking.BookingStatus
         - createdAt: LocalDateTime
         - updatedAt: LocalDateTime
-        - show: Show
-        - bookedSeats: List<ShowSeat>
     }
 
     class User {
         - id: Long
-        - name: String
         - email: String
+        - password: String
+        - firstName: String
+        - lastName: String
+        - phoneNumber: String
+        - isActive: Boolean
         - createdAt: LocalDateTime
         - updatedAt: LocalDateTime
     }
@@ -271,100 +280,10 @@ package "Models" {
         PENDING
         CONFIRMED
         FAILED
+        CANCELLED
     }
 }
 
-package "DTOs" {
-    class MovieDTO {
-        + id: Long
-        + name: String
-        + duration: Integer
-        + language: String
-    }
-
-    class TheatreDTO {
-        + id: Long
-        + name: String
-        + location: String
-    }
-
-    class ScreenDTO {
-        + id: Long
-        + name: String
-        + totalSeats: Integer
-    }
-
-    class SeatDTO {
-        + id: Long
-        + seatNumber: String
-        + seatType: String
-        + status: String
-    }
-
-    class ShowDTO {
-        + id: Long
-        + startTime: LocalDateTime
-        + endTime: LocalDateTime
-        + movieName: String
-        + theatreName: String
-        + screenName: String
-    }
-
-    class UserDTO {
-        + id: Long
-        + name: String
-        + email: String
-    }
-
-    class BookingRequestDTO {
-        + userId: Long
-        + showId: Long
-        + seatIds: List<Long>
-    }
-
-    class BookingConfirmationDTO {
-        + bookingId: Long
-        + movieName: String
-        + theatreName: String
-        + screenName: String
-        + showTime: LocalDateTime
-        + seats: List<String>
-        + totalAmount: Double
-    }
-
-    class BookingDTO {
-        + id: Long
-        + userId: Long
-        + showId: Long
-        + bookingTime: LocalDateTime
-        + status: String
-        + movieName: String
-        + theatreName: String
-        + seats: List<String>
-        + totalAmount: Double
-    }
-
-    class SeatLockRequest {
-        + showId: Long
-        + seatId: Long
-        + userId: Long
-    }
-}
-
-package "Init" {
-    class DataInitializer {
-        + run(String[]): void
-    }
-}
-
-package "Main" {
-    class BookMyShowApplication {
-        + main(String[]): void
-    }
-}
-
-' Relationships
-' Controllers to Services
 BookingController ..> BookingService : uses
 MovieController ..> MovieService : uses
 TheatreController ..> TheatreService : uses
@@ -372,7 +291,6 @@ ShowController ..> ShowService : uses
 UserController ..> UserService : uses
 SeatController ..> SeatLockService : uses
 
-' Services to Repositories
 BookingService ..> BookingRepository : uses
 BookingService ..> ShowRepository : uses
 BookingService ..> SeatRepository : uses
@@ -380,11 +298,12 @@ BookingService ..> ShowSeatRepository : uses
 MovieService ..> MovieRepository : uses
 TheatreService ..> TheatreRepository : uses
 ShowService ..> ShowRepository : uses
+ShowService ..> MovieRepository : uses
+ShowService ..> ScreenRepository : uses
 UserService ..> UserRepository : uses
 SeatLockService ..> ShowSeatRepository : uses
 SeatLockCleanupScheduler ..> SeatLockService : uses
 
-' Repositories extend JpaRepository
 BookingRepository ..|> JpaRepository : extends
 MovieRepository ..|> JpaRepository : extends
 TheatreRepository ..|> JpaRepository : extends
@@ -394,7 +313,6 @@ ShowRepository ..|> JpaRepository : extends
 ShowSeatRepository ..|> JpaRepository : extends
 UserRepository ..|> JpaRepository : extends
 
-' Entity Relationships (JPA)
 Movie "1" --> "0..*" Show : has
 Theatre "1" --> "0..*" Screen : has
 Screen "1" --> "0..*" Seat : has
@@ -405,15 +323,6 @@ Seat "1" --> "0..*" ShowSeat : has
 Booking "1" --> "0..*" ShowSeat : bookedSeats
 ShowSeat "1" --> "1" Booking : booking
 
-' Service to DTO conversions
-BookingService ..> BookingDTO : converts
-BookingService ..> BookingConfirmationDTO : returns
-MovieService ..> MovieDTO : converts
-TheatreService ..> TheatreDTO : converts
-ShowService ..> ShowDTO : converts
-UserService ..> UserDTO : converts
-
-' DataInitializer uses all repositories
 DataInitializer ..> BookingRepository : uses
 DataInitializer ..> MovieRepository : uses
 DataInitializer ..> TheatreRepository : uses
@@ -423,10 +332,8 @@ DataInitializer ..> ShowRepository : uses
 DataInitializer ..> ShowSeatRepository : uses
 DataInitializer ..> UserRepository : uses
 
-' Application initializes data
 BookMyShowApplication --> DataInitializer : initializes
 
-' Pessimistic Locking Highlight
 note right of ShowSeatRepository : Pessimistic Write Locks\nprevent race conditions\nduring seat booking
 note right of SeatLockService : Manages seat locking\nwith 5-minute expiry
 note right of SeatLockCleanupScheduler : Scheduled cleanup\nof expired locks
