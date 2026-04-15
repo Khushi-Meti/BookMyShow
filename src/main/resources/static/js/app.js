@@ -698,9 +698,9 @@ function startLockTimer() {
             clearLockTimer();
             // Seats expired — reset selection and reload
             state.selectedSeats = [];
-            fetchSeatsByScreenAndShow(state.selectedShow.screen.id, state.selectedShow.id)
+            fetchSeatsByScreenAndShow(state.selectedShow.screen.id, state.selectedShow.id, currentUser.id)
                 .then(seats => { state.screenSeats = seats || []; loadSeats(); });
-            showError('Your seat reservation has expired. Please select seats again.');
+            showError('The timer ran out. Please select seats again.');
         } else {
             updateTimerDisplay();
         }
